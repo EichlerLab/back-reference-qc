@@ -80,12 +80,13 @@ rule overwrite_sample_fastq_files:
 
             # Data overwritting rename (tmp) -> hardlink -> remove tmp
 
-#            print(f"mv {original_path} {original_tmp_path}")
-#            print(f"ln {cleaned_path} {original_path}")
-#            print(f"rm -f {original_tmp_path}")
-
             os.system(f"mv {original_path} {original_tmp_path}")
-            os.system(f"ln {cleaned_path} {original_path}")
+
+            try:
+                os.link(cleaned_path,original_path) # put os.link instead of os.system to encounter OSError when it's invalid 
+            except OSError: # in case of cross-device link was tried
+                os.system(f"cp {cleaned_path} {original_path}")
+                
             os.system(f"rm -f {original_tmp_path}")
 
             overwrite_df["STATUS"] = "Overwritten"
