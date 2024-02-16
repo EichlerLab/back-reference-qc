@@ -1,4 +1,5 @@
 import os
+import subprocess
 import hashlib
 from datetime import datetime
 
@@ -61,36 +62,75 @@ rule overwrite_sample_fastq_files:
         overwrite_df["STATUS"] = None
         overwrite_df["SAMPLE"] = wildcards.sample
         overwrite_df = overwrite_df[["SAMPLE","CELL", "ORIGINAL_PATH", "ORIGINAL_SIZE", "ORIGINAL_MD5", "CLEANED_PATH", "CLEANED_SIZE", "CLEANED_MD5", "DATE", "STATUS"]]
-
+        print("Copying")
         for index, row in overwrite_df.iterrows():
             original_path = row.ORIGINAL_PATH
             original_md5 = row.ORIGINAL_MD5
             original_tmp_path = f"{row.ORIGINAL_PATH}.tmp"
             cleaned_path = row.CLEANED_PATH
             cleaned_md5 = row.CLEANED_MD5
+            error_step = None
+            # Checking md5sum
             if original_md5 == cleaned_md5:
                 overwrite_df["STATUS"] = "Skipped:Identical"
                 overwrite_df["DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 continue
-
-            if (overwrite_df['ORIGINAL_PATH'].isnull() | overwrite_df['ORIGINAL_PATH'].isnull()).any():
+            # Checking file existance
+            if (overwrite_df['ORIGINAL_PATH'].isnull() | overwrite_df['CLEANED_PATH'].isnull()).any():
                 overwrite_df["STATUS"] = "Skipped:Missing"
                 overwrite_df["DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 continue
+            # Checking folder permission
+            original_path_dir = "/".join(original_path.split('/')[:-1])
+            if not os.access(original_path, os.W_OK): # write permission is not granted.
+                overwrite_df["STATUS"] = "PermissionDenied"
+                overwrite_df["DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                continue
 
-            # Data overwritting rename (tmp) -> hardlink -> remove tmp
+            ## Data overwritting rename (tmp) -> hardlink (or copy) -> re-indexing -> remove tmp 
+            
+            # Checking temporary file from last overwritting.
+            if os.path.isfile(original_tmp_path): # If the original file is incomplete due to an interruption during copying.
+                subprocess.run(["mv", original_tmp_path, original_path]) # Recover it from the temporary file which is same as the original.
+            # rename
+            subprocess.run(["mv", original_path, original_tmp_path])
 
-            os.system(f"mv {original_path} {original_tmp_path}")
-
+            # hardlink or copy
+            error_flag = 0
             try:
-                os.link(cleaned_path,original_path) # put os.link instead of os.system to encounter OSError when it's invalid 
-            except OSError: # in case of cross-device link was tried
-                os.system(f"cp {cleaned_path} {original_path}")
+                subprocess.run(["ln", cleaned_path, original_path], check=True, stderr=subprocess.PIPE)
+                print ("Generated hard-link")
+            except subprocess.CalledProcessError:
+                try:
+                    subprocess.run(["cp", cleaned_path, original_path], check=True)
+                except subprocess.CalledProcessError:
+                    error_flag = 1
+                    error_step = "datacopy"
+                    print (f"###Error found in {error_step} step.")
+
+            # check file migration
+            if error_flag == 0: # copy passed
+                if os.path.getsize(original_path) == os.path.getsize(cleaned_path): # breifly check the file size after file gets moved.
+                    # Re-indexing
+                    try:
+                        subprocess.run(["bgzip", "-t", original_path], check=True)
+                        subprocess.run(["samtools", "faidx", original_path], check=True)
+                        subprocess.run(["bgzip", "-r", original_path], check=True)
+                    except subprocess.CalledProcessError:
+                        error_flag = 1
+                        error_step = "reindexing"
+                        print (f"###Error found in {error_step} step.")
+                    # remove tmp
+                    subprocess.run(["rm", "-f", original_tmp_path])
+            else: # not successfully moved.
+                # recover original file
+                subprocess.run(["mv", original_tmp_path, original_path])
                 
-            os.system(f"rm -f {original_tmp_path}")
-
-            overwrite_df["STATUS"] = "Overwritten"
+            # error flag check
+            if error_flag == 0: # succeed all process.
+                overwrite_df["STATUS"] = "Overwritten"
+            else:
+                overwrite_df["STATUS"] = "Failed(%s)"%error_step
             overwrite_df["DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
         overwrite_df.to_csv(output.tab, sep="\t", index=False, compression="gzip")
         
