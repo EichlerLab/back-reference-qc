@@ -14,8 +14,24 @@ include: "rules/filter.smk"
 include: "rules/identify_contaminants.smk"
 include: "rules/create_filtered_fastq.smk"
 include: "rules/plots.smk"
+include: "rules/overwrite_fastq.smk"
 
 # --------  Begin -------- #
-rule all:
+if config["new_fastq"]: # new_fastq = True; prepare overwriting, not actual overwrite
+    rule prepare_overwrite:
+        input:
+            expand(
+                "results/overwrite_target_lists/{sample}.overwrite_target_lists.tab.gz",
+                sample=df.index.values,
+            )
+else:
+    rule back_ref_qc:
+        input:
+            get_final_output,
+
+rule overwrite:
     input:
-        get_final_output,
+        expand(
+            "results/overwrite_records/{sample}.overwrite_records.tab.gz",
+            sample=df.index.values,
+        )
