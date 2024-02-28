@@ -180,60 +180,46 @@ rule overwrite_sample_fastq_files:
                 overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 continue
 ## Assuming data copy has been completed successfully.
-## Index Copy
+## Index copy or re-indexing
             index_pairs = {
                 cleaned_fai:original_fai,
                 cleaned_gzi:original_gzi,
             }
-            try:
-                for cleaned_index in index_pairs:
-                    cleaned_fastq = '.'.join(cleaned_index.split('.')[:-1])
-                    original_index = index_pairs[cleaned_index]
-                    if os.path.isfile(original_index): # if index exists; need to delete for preventing hardlink affection.
-                        if not os.access(original_index, os.W_OK): # write permission denied
+            # Index cleaning
+            for cleaned_index in index_pairs:
+                cleaned_fastq = '.'.join(cleaned_index.split('.')[:-1])
+                original_index = index_pairs[cleaned_index]
+                if os.path.isfile(original_index): # if index exists; need to delete for preventing hardlink affection.
+                    if not os.access(original_index, os.W_OK): # write permission denied
+                        error_flag = 1
+                        error_step = "Permission_Denied(index)"
+                        print (f"### Permission Denied for indexing: {sample_name}-{fastq_base_name}")
+                        continue
+                    else: # write permisson granted
+                        try:
+                            # Delete existing index.
+                            subprocess.run(["rm", "-f", original_index], check=True, stderr=subprocess.PIPE)
+                        except:
                             error_flag = 1
-                            error_step = "Permission_Denied(index)"
-                            print (f"### Permission Denied for indexing: {sample_name}-{fastq_base_name}")
+                            error_step = "index_cleaning"
+                            print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
                             continue
-                        else: # write permisson granted
-                            try:
-                                subprocess.run(["rm", "-f", original_index], check=True, stderr=subprocess.PIPE)
-                            except:
-                                error_flag = 1
-                                error_step = "index_cleaning"
-                                print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
-                                continue
 
 ## copying indexing after clearing index.
-                    # case 1: cleaned index exists.
-                    if os.path.isfile(cleaned_index):
-                        subprocess.run(["cp", cleaned_index, original_index], check=True, stderr=subprocess.PIPE) # folder and file permisson was already granted.
-                    # case 2: cleaned index doesn't exists; need to re-generate for cleaned fastq
-                    else:
-                        # re-index for cleaned fastq.
-                        if re.search('\.gzi$', cleaned_index): # .gzi index
-                            try:
-                                subprocess.run(["samtools", "fqidx", cleaned_fastq], check=True, stderr=subprocess.PIPE)
-                            except:
-                                error_flag = 1
-                                error_step = "gzi_indexing"
-                                print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
-                                continue
-
-                        elif re.search('\.fai$', cleaned_index): # .fai index
-                            try:
-                                subprocess.run(["samtools", "faidx", cleaned_fastq], check=True, stderr=subprocess.PIPE)
-                            except:
-                                error_flag = 1
-                                error_step = "fai_indexing"
-                                print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
-                                continue
-                        subprocess.run(["cp", cleaned_index, original_index], check=True, stderr=subprocess.PIPE) # folder permisson was already granted.
+            # either one of cleaned index doesn't exists; need to re-generate for cleaned fastq
+            if not (os.path.isfile(cleaned_fai) and os.path.isfile(cleaned_gzi)):
+                # Re-indexing by samtools fqidx ( outputs: .gzi and .fai)
+                try:
+                    subprocess.run(["samtools", "fqidx", cleaned_fastq], check=True, stderr=subprocess.PIPE)
+                except:
+                    error_flag = 1
+                    error_step = "gzi_indexing"
+                    print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
+                    continue
+                # folder and file permisson was already granted at this point.
+            subprocess.run(["cp", cleaned_fai, original_fai], check=True, stderr=subprocess.PIPE)
+            subprocess.run(["cp", cleaned_gzi, original_gzi], check=True, stderr=subprocess.PIPE)
                         
-            except: # Unexpected error
-                error_flag = 1
-                error_step = "index_copy(unknown)"
-                print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
 ## Final summary step.
             if error_flag == 0: # succeed all process without any error.
                 # remove tmp fastq
