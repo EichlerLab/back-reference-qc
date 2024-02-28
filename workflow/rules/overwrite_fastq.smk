@@ -26,6 +26,7 @@ def _file_size_check(original_path, cleaned_path):
     if os.path.getsize(original_path) == os.path.getsize(cleaned_path):
         return 1
     else:
+        print (f"### SizeDiff After copying: \n Original Path: {original_path}\n Cleaned Path: {cleaned_path}")
         return 0
 
 rule make_md5sum_tab:
@@ -132,10 +133,15 @@ rule overwrite_sample_fastq_files:
             # Checking temporary file from last overwritting.
             if os.path.isfile(original_tmp_path): # If the original file is incomplete due to an interruption during copying.
                 subprocess.run(["mv", original_tmp_path, original_path]) # Recover it from the temporary file which is same as the original.
-
             # Checking md5sum
             if original_md5 == cleaned_md5: # assume copying has completed successfully in advance ( before the creation of target list ).
                 copy_flag = _file_size_check(original_path, cleaned_path) # breifly check after copying; 1(copied) or 0(not copied)
+                if copy_flag == 0: # MD5 of original fastq has been changed.
+                    error_step = "filematch"
+                    print (f"###The file {original_path} no longer match to the cleaned fastq.")
+                    overwrite_df.at[index, "STATUS"] = f"Failed({error_step})"
+                    overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    continue
             else:
                 # Secondary check for possibility that the file was already replaced in previous after creating the target list.
                 current_original_md5 = _get_checksum(original_path)
@@ -145,7 +151,13 @@ rule overwrite_sample_fastq_files:
                 # skipping copy process when it's already done.
                 if copy_flag == 0: # not copied yet
                     # rename for tmp fastq
-                    subprocess.run(["mv", original_path, original_tmp_path])
+                    try:
+                        subprocess.run(["mv", original_path, original_tmp_path])
+
+                    except subprocess.CalledProcessError as e:
+                        error_flag = 1
+                        error_step = "data_copy"
+                        print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
                     # hardlink or copy
                     try:
                         subprocess.run(["ln", cleaned_path, original_path], check=True, stderr=subprocess.PIPE)
@@ -154,12 +166,13 @@ rule overwrite_sample_fastq_files:
                         try:
                             subprocess.run(["cp", cleaned_path, original_path], check=True, stderr=subprocess.PIPE)
                             copy_flag = _file_size_check(original_path, cleaned_path) # breifly check after copying; 1(copied) or 0(not copied)
-                        except:
+                        except subprocess.CalledProcessError as e:
+                            print (f"#CopyError: {e.stderr.decode()}")
                             error_flag = 1
-                            error_step = "datacopy"
+                            error_step = "data_copy"
                             print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
             if copy_flag == 0: # data copy failed or interrupted.
-                error_step = "datacopy"
+                error_step = "data_copy"
                 # Recover it from the temporary file if it's possible.
                 if os.path.isfile(original_tmp_path):
                     subprocess.run(["mv", original_tmp_path, original_path])
@@ -176,37 +189,57 @@ rule overwrite_sample_fastq_files:
                 for cleaned_index in index_pairs:
                     cleaned_fastq = '.'.join(cleaned_index.split('.')[:-1])
                     original_index = index_pairs[cleaned_index]
-                    if os.path.isfile(original_index): # if index exists; need to copy
+                    print (cleaned_fastq)
+                    print (original_index)
+
+
+
+                    if os.path.isfile(original_index): # if index exists; need to delete for preventing hardlink affection.
                         if not os.access(original_index, os.W_OK): # write permission denied
                             error_flag = 1
-                            error_step = "indexcopy"
-                            print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
+                            error_step = "Permission_Denied(index)"
+                            print (f"### Permission Denied for indexing: {sample_name}-{fastq_base_name}")
                             continue
                         else: # write permisson granted
-                            # remove original index to aviod affecting to hardlink
-                            if os.path.isfile(original_index):
+                            try:
                                 subprocess.run(["rm", "-f", original_index], check=True, stderr=subprocess.PIPE)
-                        ## copying indexing
-                        if not os.path.isfile(original_index): # double check for preventing hardlink affection.
-                            # case 1: cleaned index exists.
-                            if os.path.isfile(cleaned_index):
-                                subprocess.run(["cp", cleaned_index, original_index], check=True, stderr=subprocess.PIPE) # folder permisson was already granted.
-                            # case 2: cleaned index doesn't exists.                                                            
-                            else:
-                                # re-index for cleaned fastq.
-                                if re.search('\.gzi$', cleaned_index): # .gzi index
-                                    subprocess.run(["samtools", "fqidx", cleaned_fastq], check=True, stderr=subprocess.PIPE)
-                                elif re.search('\.fai$', cleaned_index): # .fai index
-                                    subprocess.run(["samtools", "faidx", cleaned_fastq], check=True, stderr=subprocess.PIPE)
-                                subprocess.run(["cp", cleaned_index, original_index], check=True, stderr=subprocess.PIPE) # folder permisson was already granted.
+                            except:
+                                error_flag = 1
+                                error_step = "index_cleaning"
+                                print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
+                                continue
 
+## copying indexing after clearing index.
+                    # case 1: cleaned index exists.
+                    if os.path.isfile(cleaned_index):
+                        subprocess.run(["cp", cleaned_index, original_index], check=True, stderr=subprocess.PIPE) # folder and file permisson was already granted.
+                    # case 2: cleaned index doesn't exists; need to re-generate for cleaned fastq
+                    else:
+                        # re-index for cleaned fastq.
+                        if re.search('\.gzi$', cleaned_index): # .gzi index
+                            try:
+                                subprocess.run(["samtools", "fqidx", cleaned_fastq], check=True, stderr=subprocess.PIPE)
+                            except:
+                                error_flag = 1
+                                error_step = "gzi_indexing"
+                                print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
+                                continue
+
+                        elif re.search('\.fai$', cleaned_index): # .fai index
+                            try:
+                                subprocess.run(["samtools", "faidx", cleaned_fastq], check=True, stderr=subprocess.PIPE)
+                            except:
+                                error_flag = 1
+                                error_step = "fai_indexing"
+                                print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
+                                continue
+                        subprocess.run(["cp", cleaned_index, original_index], check=True, stderr=subprocess.PIPE) # folder permisson was already granted.
+                        
             except: # Unexpected error
                 error_flag = 1
-                error_step = "indexcopy"
+                error_step = "index_copy(unknown)"
                 print (f"###Error found in {error_step} step: {sample_name}-{fastq_base_name}")
-
 ## Final summary step.
-
             if error_flag == 0: # succeed all process without any error.
                 # remove tmp fastq
                 if os.path.isfile(original_tmp_path):
