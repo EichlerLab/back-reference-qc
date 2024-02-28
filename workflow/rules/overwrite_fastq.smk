@@ -189,11 +189,6 @@ rule overwrite_sample_fastq_files:
                 for cleaned_index in index_pairs:
                     cleaned_fastq = '.'.join(cleaned_index.split('.')[:-1])
                     original_index = index_pairs[cleaned_index]
-                    print (cleaned_fastq)
-                    print (original_index)
-
-
-
                     if os.path.isfile(original_index): # if index exists; need to delete for preventing hardlink affection.
                         if not os.access(original_index, os.W_OK): # write permission denied
                             error_flag = 1
