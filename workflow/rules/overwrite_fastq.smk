@@ -31,7 +31,7 @@ def _file_size_check(original_path, cleaned_path):
 
 rule make_md5sum_tab:
     input:
-        fofn = rules.make_new_fofn.output.new_fofn, 
+        fofn = rules.make_new_fofn.output.new_fofn,
     output:
         tab = "results/reads_filtered/{sample}/fastq.md5.tsv"
     threads: 1,
