@@ -32,6 +32,7 @@ def get_final_output(wildcards):
 
         if config["new_fastq"]:
             final_outputs.append(f"results/reads_filtered/{row.sample}/fastq.fofn")
+            final_outputs.append(f"results/overwrite_target_lists/{row.sample}.overwrite_target_lists.tab.gz")
 
     return expand(final_outputs)
 

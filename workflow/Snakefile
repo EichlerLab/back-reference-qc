@@ -17,17 +17,9 @@ include: "rules/plots.smk"
 include: "rules/overwrite_fastq.smk"
 
 # --------  Begin -------- #
-if config["new_fastq"]: # new_fastq = True; prepare overwriting, not actual overwrite
-    rule prepare_overwrite:
-        input:
-            expand(
-                "results/overwrite_target_lists/{sample}.overwrite_target_lists.tab.gz",
-                sample=df.index.values,
-            )
-else:
-    rule back_ref_qc:
-        input:
-            get_final_output,
+rule all:
+    input:
+        get_final_output,
 
 rule overwrite:
     input:
