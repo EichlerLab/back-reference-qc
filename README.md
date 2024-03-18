@@ -126,4 +126,4 @@ Due to the current limitations of the algorithm, if the back-reference-qc pipeli
    3. You can find other types of databases here: https://benlangmead.github.io/aws-indexes/k2
 
 ## Overview
-![pipeline vector](https://github.com/projectoriented/back-reference-qc/blob/main/dag.svg)
+![pipeline vector](https://github.com/youngjun0827/back-reference-qc/blob/main/dag.svg)
