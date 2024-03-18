@@ -109,7 +109,7 @@ rule overwrite_sample_fastq_files:
             # Checking file existance
             if pd.isnull(row['ORIGINAL_PATH']) or pd.isnull(row['CLEANED_PATH']):
                     overwrite_df.at[index, "STATUS"] = "Skipped:Missing"
-                    overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
                     continue
 
             # Checking folder permission
@@ -124,7 +124,7 @@ rule overwrite_sample_fastq_files:
             permission_result = "/".join(permission_check)
             if not permission_result == "": # write permission is not granted.
                 overwrite_df.at[index, "STATUS"] = f"Failed(PermissionDenied;{permission_result})"
-                overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
                 print (f"### Permission Denied for {permission_result}: {sample_name}-{fastq_base_name}")
                 continue
 
@@ -140,7 +140,7 @@ rule overwrite_sample_fastq_files:
                     error_step = "filematch"
                     print (f"###The file {original_path} no longer match to the cleaned fastq.")
                     overwrite_df.at[index, "STATUS"] = f"Failed({error_step})"
-                    overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
                     continue
             else:
                 # Secondary check for possibility that the file was already replaced in previous after creating the target list.
@@ -177,7 +177,7 @@ rule overwrite_sample_fastq_files:
                 if os.path.isfile(original_tmp_path):
                     subprocess.run(["mv", original_tmp_path, original_path])
                 overwrite_df.at[index, "STATUS"] = f"Failed({error_step})"
-                overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
                 continue
 ## Assuming data copy has been completed successfully.
 ## Index copy or re-indexing
@@ -228,5 +228,5 @@ rule overwrite_sample_fastq_files:
                 overwrite_df.at[index, "STATUS"] = "Overwritten"
             else:
                 overwrite_df.at[index, "STATUS"] = f"Failed({error_step})"
-            overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            overwrite_df.at[index, "DATE"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         overwrite_df.to_csv(output.tab, sep="\t", index=False, compression="gzip")
