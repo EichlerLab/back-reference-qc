@@ -10,12 +10,8 @@ rule buildmer:
     resources:
         mem=calc_mem_gb,
         hrs=72,
-    envmodules:
-        "modules",
-        "modules-init",
-        "modules-gs/prod",
-        "modules-eichler/prod",
-        f"yak/{YAK_VERSION}",
+    container:
+        "docker://eichlerlab/back-reference-qc:0.1",
     shell:
         """
         if [[ {params.data_type} == "long" ]]; then
@@ -48,12 +44,8 @@ rule compute_read_qv:
     resources:
         mem=calc_mem_gb,
         hrs=72,
-    envmodules:
-        "modules",
-        "modules-init",
-        "modules-gs/prod",
-        "modules-eichler/prod",
-        f"yak/{YAK_VERSION}",
+    container:
+        "docker://eichlerlab/back-reference-qc:0.1",
     shell:
         """
         # compute read QV
@@ -73,12 +65,8 @@ rule compute_kmer_qv:
     resources:
         mem=calc_mem_gb,
         hrs=72,
-    envmodules:
-        "modules",
-        "modules-init",
-        "modules-gs/prod",
-        "modules-eichler/prod",
-        f"yak/{YAK_VERSION}",
+    container:
+        "docker://eichlerlab/back-reference-qc:0.1",
     shell:
         """
         # make sure directories exist

@@ -48,12 +48,8 @@ if config["new_fastq"]:
         resources:
             mem=calc_mem_gb,
             hrs=72,
-        envmodules:
-            "modules",
-            "modules-init",
-            "modules-gs/prod",
-            "modules-eichler/prod",
-            f"seqtk/{SEQTK_VERSION}",
+        container:
+        "docker://eichlerlab/back-reference-qc:0.1",
         shell:
             """
             seqtk subseq {input.fastq} {input.target_reads} > {output.subsetted_fastq}
@@ -73,12 +69,6 @@ if config["new_fastq"]:
         resources:
             mem=lambda wildcards, attempt: attempt * 16,
             hrs=72,
-        envmodules:
-            "modules",
-            "modules-init",
-            "modules-gs/prod",
-            "modules-eichler/prod",
-            "samtools/1.14",
         shell:
             """
             cat {input.subset_fastqs} > {output.merged_fastqs} \
