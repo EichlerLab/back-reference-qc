@@ -1,10 +1,9 @@
 latency-wait: 60
 keep-going: True
 printshellcmds: True
-restart-times: 3
-
-use-envmodules: True
-
+restart-times: 1
+use-singularity: True
+singularity-args: "--bind /net/:/net/"
 # Cluster submission
 jobname: "{rulename}.{jobid}"
 # for SGE

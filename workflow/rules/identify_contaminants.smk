@@ -8,12 +8,8 @@ rule undesirable_seq:
     resources:
         mem=calc_mem_gb,
         hrs=72,
-    envmodules:
-        "modules",
-        "modules-init",
-        "modules-gs/prod",
-        "modules-eichler/prod",
-        f"seqtk/{SEQTK_VERSION}",
+    container:
+        "docker://eichlerlab/back-reference-qc:0.1",
     shell:
         """
         seqtk subseq \
@@ -33,12 +29,8 @@ rule kraken2:
     resources:
         mem=calc_mem_gb,
         hrs=72,
-    envmodules:
-        "modules",
-        "modules-init",
-        "modules-gs/prod",
-        "modules-eichler/prod",
-        f"kraken2/{KRAKEN2_VERSION}",
+    container:
+        "docker://eichlerlab/back-reference-qc:0.1",
     shell:
         """
         kraken2 \
