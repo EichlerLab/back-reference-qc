@@ -48,8 +48,8 @@ if config["new_fastq"]:
         resources:
             mem=calc_mem_gb,
             hrs=72,
-        container:
-        "docker://eichlerlab/back-reference-qc:0.1",
+        container: 
+            "docker://eichlerlab/back-reference-qc:0.1",
         shell:
             """
             seqtk subseq {input.fastq} {input.target_reads} > {output.subsetted_fastq}
