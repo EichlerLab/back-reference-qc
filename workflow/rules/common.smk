@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import re
 from snakemake.utils import validate
 
 validate(config, schema="../schemas/config.schema.yaml")
@@ -99,9 +100,16 @@ def get_query_fastq(sample_name):
     fofn_df = pd.read_table(fofn_path, names=["filepath"])
 
     # Get the cell name minus the extension
-    def get_cell_name(fn):
-        bn = os.path.basename(fn).split(".")[:-1]
-        return ".".join(bn)
+    def get_cell_name(fn): # fn should be the absolute path
+        
+        if re.search("eee-prom|eee-grid", fn): # ONT
+            identifier_set = fn.split("/")[13].split("_")[3:]
+            fc_id = identifier_set[0]
+            identifier = "_".join(identifier_set)
+            bn = ".".join(os.path.basename(fn).split(".")[:-1]).replace(fc_id, identifier)
+        else: # HiFi
+            bn = ".".join(os.path.basename(fn).split(".")[:-1])
+        return bn
 
     fofn_df["cell_name"] = fofn_df.filepath.map(get_cell_name)
 
