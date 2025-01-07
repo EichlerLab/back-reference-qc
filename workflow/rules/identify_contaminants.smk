@@ -28,7 +28,7 @@ rule kraken2:
     threads: 16
     resources:
         mem=calc_mem_gb,
-        hrs=72,
+        hrs=240,
     container:
         "docker://eichlerlab/back-reference-qc:0.1",
     shell:

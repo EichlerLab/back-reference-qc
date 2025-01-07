@@ -49,7 +49,7 @@ rule make_overwrite_target_list:
         cleaned_md5_tab = rules.make_md5sum_tab.output.tab,
     output:
         tab="results/overwrite_target_lists/{sample}.overwrite_target_lists.tab.gz"
-    threads: 12,
+    threads: 1,
     resources:
         mem=12,
         hrs=48,
@@ -77,7 +77,7 @@ rule overwrite_sample_fastq_files:
         cleaned_flag = "results/overwrite_target_lists/.{sample}.overwrite_prepare.done",
     output:
         tab="results/overwrite_records/{sample}.overwrite_records.tab.gz"
-    threads: 12,
+    threads: 1,
     resources:
         mem=12,
         hrs=48,

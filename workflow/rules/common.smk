@@ -46,7 +46,7 @@ def get_kraken2_summaries(wildcards):
     )
 
 def calc_mem_gb(wildcards, input, attempt, threads):
-    mb = max(1.5 * input.size_mb, 1000)
+    mb = max(1.5 * input.size_mb, 4000)
     gb = int(mb / 1000)
 
     if threads != 1:
