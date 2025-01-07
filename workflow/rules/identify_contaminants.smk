@@ -8,7 +8,7 @@ rule undesirable_seq:
     resources:
         mem=calc_mem_gb,
         hrs=72,
-    container:
+    singularity:
         "docker://eichlerlab/back-reference-qc:0.1",
     shell:
         """
@@ -29,7 +29,7 @@ rule kraken2:
     resources:
         mem=calc_mem_gb,
         hrs=240,
-    container:
+    singularity:
         "docker://eichlerlab/back-reference-qc:0.1",
     shell:
         """
