@@ -54,6 +54,18 @@ rule compute_read_qv:
         yak qv -t {threads} -p {resources.tmpdir}/$( basename {input.reference_hash_table} ) {resources.tmpdir}/$( basename {input.query_read} ) | gzip -c > {output.qv_txt}
         """
 
+rule get_sample_read_qv:
+    input:
+        get_qv_paths,
+    output:
+        flag = "results/read_qv/{sample}.get_qv.done",
+    threads: 1,
+    resources:
+        mem=1,
+        hrs=1,
+    shell: """
+    touch {output.flag}
+    """
 
 rule compute_kmer_qv:
     input:

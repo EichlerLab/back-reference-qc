@@ -35,7 +35,15 @@ def get_final_output(wildcards):
             final_outputs.append(f"results/reads_filtered/{row.sample}/fastq.fofn")
             final_outputs.append(f"results/overwrite_target_lists/{row.sample}.overwrite_target_lists.tab.gz")
 
-    return expand(final_outputs)
+    return final_outputs
+
+def get_qv_paths(wildcards):
+    sample = str(wildcards.get("sample"))
+    fofn_df = get_query_fastq(sample)
+    return [
+        f"results/read_qv/{sample}/{cell_name}-reference_qv.txt.gz"
+        for cell_name in fofn_df.index
+    ]
 
 def get_kraken2_summaries(wildcards):
     fofn_df = get_query_fastq(sample_name=wildcards.sample)
@@ -84,7 +92,7 @@ def get_reads(which_one="fastq_files"):
         elif which_one == "fai":
             fofn_df = get_query_fastq(sample_name=wildcards.sample)
             fofn_df["fai"] = fofn_df["filepath"] + ".fai"
-            return fofn_df.at[wildcards.cell_name, "fai"]
+            return fofn_df.at[wildcards.cell_name, "fai"]    
 
     return inner
 
@@ -96,7 +104,8 @@ def get_comparison_type(wildcards):
         return ct
 
 def get_query_fastq(sample_name):
-    fofn_path = df.at[sample_name, "query_fofn"]
+    sample_name = str(sample_name)
+    fofn_path = df.loc[sample_name, "query_fofn"]
     fofn_df = pd.read_table(fofn_path, names=["filepath"])
 
     # Get the cell name minus the extension
