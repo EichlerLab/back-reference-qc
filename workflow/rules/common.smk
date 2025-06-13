@@ -110,12 +110,24 @@ def get_query_fastq(sample_name):
 
     # Get the cell name minus the extension
     def get_cell_name(fn): # fn should be the absolute path
-        
+        file_basename = os.path.basename(fn)
         if re.search("eee-prom|eee-grid", fn): # ONT
-            identifier_set = fn.split("/")[13].split("_")[3:]
-            fc_id = identifier_set[0]
+            for machine in ["prom", "grid"]:
+                if not re.search(f"eee-{machine}",fn):
+                    continue
+#                identifier_set = file_basename.split(f"eee-{machine}")[1].split("-")[1].split("_")[:5]
+                identifier_set = fn.split("/")[13].split("_")
+
+            fc_id = identifier_set[3]
             identifier = "_".join(identifier_set)
-            bn = ".".join(os.path.basename(fn).split(".")[:-1]).replace(fc_id, identifier)
+
+            bn = ".".join(os.path.basename(fn).split(".")[:-1])
+            # Should be applied later
+#            bn = ".".join(os.path.basename(fn).split(".")[:-1]).replace(fc_id, identifier)
+
+
+            if not re.search(identifier, file_basename):
+                bn = bn.replace(fc_id, identifier)
         else: # HiFi
             bn = ".".join(os.path.basename(fn).split(".")[:-1])
         return bn
